@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drop for a Drop - Play for Clean Water</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Top Header -->
+  <div class="top-header">
+    <h1 class="main-title">💧 Drop for Drop 💧</h1>
+    <div class="game-controls">
+      <button id="pause-btn" class="btn-icon" disabled title="Pause Game">⏸️</button>
+    </div>
+  </div>
+
+  <div class="game-wrapper">
+    <!-- Stats Sidebar -->
+    <div class="stats-sidebar">
+      <div class="logo">
+        <h2>Drop for<br>a Drop</h2>
+        <p class="tagline">Inspired by charity: water</p>
+      </div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-label">Score</span>
+          <span class="stat-value" id="score">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Streak</span>
+          <span class="stat-value streak" id="streak">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Speed</span>
+          <span class="stat-value" id="speed">1x</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Time</span>
+          <span class="stat-value" id="time">60</span>
+        </div>
+        <div class="stat-item best">
+          <span class="stat-label">Best Score</span>
+          <span class="stat-value" id="best-score">0</span>
+        </div>
+      </div>
+
+      <div class="active-powerup" id="active-powerup" style="display: none;">
+        <div class="powerup-icon">🛡️</div>
+        <div class="powerup-name">Shield Active</div>
+        <div class="powerup-timer" id="powerup-timer">5s</div>
+      </div>
+
+      <div class="legend">
+        <h3>Drop Types</h3>
+        <div class="legend-item">
+          <div class="legend-drop clean"></div>
+          <span>Clean Water <strong>+1</strong></span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-drop dirty"></div>
+          <span>Dirty Water <strong>-2</strong></span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-drop powerup">🛡️</div>
+          <span>Shield Power-up</span>
+        </div>
+      </div>
+
+      <div class="impact-counter">
+        <p>People Helped</p>
+        <div class="impact-number" id="impact">0</div>
+        <small>Every 10 points = 1 person</small>
+      </div>
+
+      <div class="charity-badge">
+        <p class="badge-title">💧 Supporting</p>
+        <a href="https://www.charitywater.org" target="_blank" class="charity-link" title="Learn more about charity: water">
+          <strong>charity: water</strong>
+        </a>
+        <p class="badge-message">Play for clean water access</p>
+      </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div class="game-main">
+      <div class="game-container">
+        <div id="game-area">
+          <div id="bucket" class="bucket"></div>
+          <div id="pause-overlay" class="pause-overlay" style="display: none;">
+            <div class="pause-content">
+              <h2>Game Paused</h2>
+              <button id="resume-btn" class="btn-primary">Resume</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="start-btn" class="btn-primary">Start Game</button>
+          <p class="instructions">Move your mouse or touch to catch clean drops!</p>
+          <p class="instructions-detail">Catch clean water (+1) • Avoid dirty water (-2) • Grab shields for protection</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="game-over-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Game Over!</h2>
+      <div class="impact-message">
+        <p>🌍 <strong>Your Impact</strong></p>
+        <p class="impact-text">You helped provide clean water access to <span id="final-impact-count">0</span> people!</p>
+      </div>
+      <div class="final-stats">
+        <div class="final-stat">
+          <span class="label">Final Score</span>
+          <span class="value" id="final-score">0</span>
+        </div>
+        <div class="final-stat best">
+          <span class="label">Best Score</span>
+          <span class="value" id="final-best">0</span>
+        </div>
+        <div class="final-stat">
+          <span class="label">People Helped</span>
+          <span class="value" id="final-impact">0</span>
+        </div>
+      </div>
+      <p class="charity-message">💧 Every drop matters. 785 million people still lack access to clean water.</p>
+      <div class="cta-reason">
+        <p><strong>Your play supports real impact:</strong></p>
+        <ul>
+          <li>✓ 100% of donations fund water projects</li>
+          <li>✓ Direct water access to communities in need</li>
+          <li>✓ Transparency in every project</li>
+        </ul>
+      </div>
+      <div class="modal-buttons">
+        <button id="play-again-btn" class="btn-primary">Play Again</button>
+        <button id="return-home-btn" class="btn-secondary">Return Home</button>
+        <a href="https://www.charitywater.org/donate" target="_blank" class="btn-donate">💧 Donate to charity: water</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Game State
+    let score = 0;
+    let streak = 0;
+    let speedMultiplier = 1;
+    let timeLeft = 60;
+    let bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
+    let gameActive = false;
+    let drops = [];
+    let baseDropSpeed = 2;
+    let dropInterval = 800;
+    let lastDropTime = 0;
+    let gameStartTime = 0;
+    let timerInterval = null;
+    let shieldActive = false;
+    let shieldEndTime = 0;
+    let isPaused = false;
+    let animationFrameId = null;
+
+    // DOM Elements
+    const gameArea = document.getElementById('game-area');
+    const bucket = document.getElementById('bucket');
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    const speedEl = document.getElementById('speed');
+    const timeEl = document.getElementById('time');
+    const bestScoreEl = document.getElementById('best-score');
+    const impactEl = document.getElementById('impact');
+    const startBtn = document.getElementById('start-btn');
+    const gameOverModal = document.getElementById('game-over-modal');
+    const playAgainBtn = document.getElementById('play-again-btn');
+    const activePowerupEl = document.getElementById('active-powerup');
+    const powerupTimerEl = document.getElementById('powerup-timer');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resumeBtn = document.getElementById('resume-btn');
+    const pauseOverlay = document.getElementById('pause-overlay');
+    const returnHomeBtn = document.getElementById('return-home-btn');
+
+    bestScoreEl.textContent = bestScore;
+
+    // Drop Types
+    const DROP_TYPES = {
+      CLEAN: { points: 1, color: 'clean', probability: 0.6 },
+      DIRTY: { points: -2, color: 'dirty', probability: 0.3 },
+      POWERUP: { points: 0, color: 'powerup', probability: 0.1 }
+    };
+
+    // Move bucket
+    function moveBucket(x) {
+      const gameRect = gameArea.getBoundingClientRect();
+      const bucketWidth = bucket.offsetWidth;
+      let newX = x - gameRect.left - bucketWidth / 2;
+      newX = Math.max(0, Math.min(newX, gameRect.width - bucketWidth));
+      bucket.style.left = newX + 'px';
+    }
+
+    gameArea.addEventListener('mousemove', (e) => {
+      if (gameActive) moveBucket(e.clientX);
+    });
+
+    gameArea.addEventListener('touchmove', (e) => {
+      if (gameActive) {
+        e.preventDefault();
+        moveBucket(e.touches[0].clientX);
+      }
+    });
+
+    // Get random drop type
+    function getRandomDropType() {
+      const rand = Math.random();
+      if (rand < DROP_TYPES.POWERUP.probability) return 'POWERUP';
+      if (rand < DROP_TYPES.POWERUP.probability + DROP_TYPES.DIRTY.probability) return 'DIRTY';
+      return 'CLEAN';
+    }
+
+    // Create a drop
+    function createDrop() {
+      const dropType = getRandomDropType();
+      const drop = document.createElement('div');
+      drop.className = `drop ${DROP_TYPES[dropType].color}`;
+      
+      if (dropType === 'POWERUP') {
+        drop.innerHTML = '🛡️';
+        drop.classList.add('powerup-drop');
+      }
+      
+      drop.style.left = Math.random() * (gameArea.offsetWidth - 30) + 'px';
+      drop.style.top = '0px';
+      gameArea.appendChild(drop);
+      
+      drops.push({
+        element: drop,
+        type: dropType,
+        y: 0,
+        x: parseFloat(drop.style.left)
+      });
+    }
+
+    // Activate shield
+    function activateShield() {
+      shieldActive = true;
+      shieldEndTime = Date.now() + 5000;
+      bucket.classList.add('shielded');
+      activePowerupEl.style.display = 'block';
+      updatePowerupTimer();
+    }
+
+    // Update powerup timer
+    function updatePowerupTimer() {
+      if (shieldActive) {
+        const timeRemaining = Math.max(0, Math.ceil((shieldEndTime - Date.now()) / 1000));
+        powerupTimerEl.textContent = `${timeRemaining}s`;
+        
+        if (timeRemaining <= 0) {
+          deactivateShield();
+        }
+      }
+    }
+
+    // Deactivate shield
+    function deactivateShield() {
+      shieldActive = false;
+      bucket.classList.remove('shielded');
+      activePowerupEl.style.display = 'none';
+    }
+
+    // Update score
+    function updateScore(points, dropType) {
+      if (dropType === 'CLEAN') {
+        streak++;
+        streakEl.textContent = streak;
+        streakEl.parentElement.classList.add('streak-active');
+        
+        // Bonus points for streak
+        const bonusMultiplier = Math.floor(streak / 5);
+        points += bonusMultiplier;
+      } else if (dropType === 'DIRTY') {
+        if (!shieldActive) {
+          streak = 0;
+          streakEl.textContent = streak;
+          streakEl.parentElement.classList.remove('streak-active');
+        }
+      }
+      
+      score = Math.max(0, score + points);
+      scoreEl.textContent = score;
+      
+      // Update impact counter
+      const peopleHelped = Math.floor(score / 10);
+      impactEl.textContent = peopleHelped;
+    }
+
+    // Update speed
+    function updateSpeed() {
+      speedMultiplier = 1 + (score / 50);
+      speedEl.textContent = speedMultiplier.toFixed(1) + 'x';
+      dropInterval = Math.max(400, 800 - (score * 2));
+    }
+
+    // Game timer
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timeEl.textContent = timeLeft;
+        
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    // Pause game
+    function pauseGame() {
+      if (!gameActive || isPaused) return;
+      isPaused = true;
+      clearInterval(timerInterval);
+      pauseOverlay.style.display = 'flex';
+      pauseBtn.textContent = '▶️';
+      pauseBtn.title = 'Resume Game';
+    }
+
+    // Resume game
+    function resumeGame() {
+      if (!gameActive || !isPaused) return;
+      isPaused = false;
+      pauseOverlay.style.display = 'none';
+      pauseBtn.textContent = '⏸️';
+      pauseBtn.title = 'Pause Game';
+      startTimer();
+      lastDropTime = performance.now();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Return home
+    function returnHome() {
+      gameActive = false;
+      isPaused = false;
+      clearInterval(timerInterval);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      startBtn.textContent = 'Start Game';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      pauseOverlay.style.display = 'none';
+      gameOverModal.style.display = 'none';
+      
+      // Clear any remaining drops
+      drops.forEach(drop => drop.element.remove());
+      drops = [];
+      deactivateShield();
+    }
+
+    // Game loop
+    function gameLoop(timestamp) {
+      if (!gameActive || isPaused) return;
+
+      // Create new drops
+      if (timestamp - lastDropTime > dropInterval) {
+        createDrop();
+        lastDropTime = timestamp;
+      }
+
+      // Update drops
+      const bucketRect = bucket.getBoundingClientRect();
+      const currentSpeed = baseDropSpeed * speedMultiplier;
+
+      drops = drops.filter(drop => {
+        drop.y += currentSpeed;
+        drop.element.style.top = drop.y + 'px';
+
+        const dropRect = drop.element.getBoundingClientRect();
+
+        // Check collision with bucket
+        if (dropRect.bottom >= bucketRect.top &&
+            dropRect.top <= bucketRect.bottom &&
+            dropRect.right >= bucketRect.left &&
+            dropRect.left <= bucketRect.right) {
+          
+          if (drop.type === 'POWERUP') {
+            activateShield();
+          } else {
+            const points = DROP_TYPES[drop.type].points;
+            if (drop.type === 'DIRTY' && shieldActive) {
+              // Shield protects from negative points
+              updateScore(0, 'CLEAN'); // Don't break streak
+            } else {
+              updateScore(points, drop.type);
+            }
+          }
+          
+          updateSpeed();
+          drop.element.remove();
+          return false;
+        }
+
+        // Check if drop missed
+        if (drop.y > gameArea.offsetHeight) {
+          drop.element.remove();
+          return false;
+        }
+
+        return true;
+      });
+
+      // Update powerup timer
+      if (shieldActive) {
+        updatePowerupTimer();
+      }
+
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Start game
+    function startGame() {
+      score = 0;
+      streak = 0;
+      speedMultiplier = 1;
+      timeLeft = 60;
+      baseDropSpeed = 2;
+      dropInterval = 800;
+      shieldActive = false;
+      
+      drops.forEach(drop => drop.element.remove());
+      drops = [];
+      
+      scoreEl.textContent = score;
+      streakEl.textContent = streak;
+      speedEl.textContent = '1.0x';
+      timeEl.textContent = timeLeft;
+      impactEl.textContent = '0';
+      streakEl.parentElement.classList.remove('streak-active');
+      
+      deactivateShield();
+      gameOverModal.style.display = 'none';
+      
+      gameActive = true;
+      isPaused = false;
+      startBtn.textContent = 'Game in Progress...';
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = '⏸️';
+      pauseOverlay.style.display = 'none';
+      
+      gameStartTime = performance.now();
+      lastDropTime = gameStartTime;
+      
+      startTimer();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // End game
+    function endGame() {
+      gameActive = false;
+      isPaused = false;
+      clearInterval(timerInterval);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      startBtn.textContent = 'Start Game';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      pauseOverlay.style.display = 'none';
+      
+      // Update best score
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('bestScore', bestScore);
+        bestScoreEl.textContent = bestScore;
+      }
+      
+      // Show game over modal
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('final-best').textContent = bestScore;
+      document.getElementById('final-impact').textContent = Math.floor(score / 10);
+      document.getElementById('final-impact-count').textContent = Math.floor(score / 10);
+      gameOverModal.style.display = 'flex';
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startGame);
+    playAgainBtn.addEventListener('click', startGame);
+    returnHomeBtn.addEventListener('click', returnHome);
+    pauseBtn.addEventListener('click', () => {
+      if (isPaused) {
+        resumeGame();
+      } else {
+        pauseGame();
+      }
+    });
+    resumeBtn.addEventListener('click', resumeGame);
+    
+    // Keyboard shortcut for pause (spacebar)
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && gameActive) {
+        e.preventDefault();
+        if (isPaused) {
+          resumeGame();
+        } else {
+          pauseGame();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
