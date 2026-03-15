@@ -165,6 +165,130 @@
     let shieldEndTime = 0;
     let isPaused = false;
     let animationFrameId = null;
+    let audioContext = null;
+    let highScoreCelebrated = false;
+
+    // Initialize Audio Context
+    function initAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    // Play clean drop sound (light chime)
+    function playCleanSound() {
+      if (!audioContext) return;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    }
+
+    // Play dirty drop sound (buzz)
+    function playDirtySound() {
+      if (!audioContext) return;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.15);
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.15);
+    }
+
+    // Play powerup sound
+    function playPowerupSound() {
+      if (!audioContext) return;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.3);
+      
+      gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    }
+
+    // Create floating text effect
+    function createFloatingText(text, x, y, isPositive) {
+      const floatingText = document.createElement('div');
+      floatingText.className = `floating-text ${isPositive ? 'positive' : 'negative'}`;
+      floatingText.textContent = text;
+      floatingText.style.left = x + 'px';
+      floatingText.style.top = y + 'px';
+      gameArea.appendChild(floatingText);
+      
+      setTimeout(() => {
+        floatingText.remove();
+      }, 1000);
+    }
+
+    // Create screen flash effect
+    function flashScreen(type) {
+      const flash = document.createElement('div');
+      flash.className = `screen-flash ${type}`;
+      gameArea.appendChild(flash);
+      
+      setTimeout(() => {
+        flash.remove();
+      }, 300);
+    }
+
+    // Celebrate when player beats their best score
+    function triggerHighScoreCelebration() {
+      const banner = document.createElement('div');
+      banner.className = 'celebration-banner';
+      banner.textContent = 'NEW HIGH SCORE!';
+      gameArea.appendChild(banner);
+
+      const confettiContainer = document.createElement('div');
+      confettiContainer.className = 'confetti-container';
+      gameArea.appendChild(confettiContainer);
+
+      for (let i = 0; i < 36; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.animationDelay = Math.random() * 0.6 + 's';
+        piece.style.animationDuration = 1.2 + Math.random() * 1.3 + 's';
+        piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+        confettiContainer.appendChild(piece);
+      }
+
+      flashScreen('powerup');
+      playPowerupSound();
+
+      setTimeout(() => {
+        banner.remove();
+        confettiContainer.remove();
+      }, 2400);
+    }
 
     // DOM Elements
     const gameArea = document.getElementById('game-area');
@@ -293,6 +417,11 @@
       
       score = Math.max(0, score + points);
       scoreEl.textContent = score;
+
+      if (!highScoreCelebrated && score > bestScore) {
+        highScoreCelebrated = true;
+        triggerHighScoreCelebration();
+      }
       
       // Update impact counter
       const peopleHelped = Math.floor(score / 10);
@@ -386,15 +515,35 @@
             dropRect.right >= bucketRect.left &&
             dropRect.left <= bucketRect.right) {
           
+          const bucketCenterX = bucketRect.left + bucketRect.width / 2;
+          const bucketTopY = bucketRect.top;
+          
           if (drop.type === 'POWERUP') {
             activateShield();
+            playPowerupSound();
+            flashScreen('powerup');
+            createFloatingText('🛡️', bucketCenterX - 15, bucketTopY - 20, true);
           } else {
             const points = DROP_TYPES[drop.type].points;
             if (drop.type === 'DIRTY' && shieldActive) {
               // Shield protects from negative points
               updateScore(0, 'CLEAN'); // Don't break streak
+              playCleanSound();
+              flashScreen('clean');
+              createFloatingText('BLOCKED!', bucketCenterX - 40, bucketTopY - 20, true);
             } else {
               updateScore(points, drop.type);
+              
+              // Visual and audio feedback
+              if (drop.type === 'CLEAN') {
+                playCleanSound();
+                flashScreen('clean');
+                createFloatingText('+1', bucketCenterX - 15, bucketTopY - 20, true);
+              } else if (drop.type === 'DIRTY') {
+                playDirtySound();
+                flashScreen('dirty');
+                createFloatingText('−2', bucketCenterX - 15, bucketTopY - 20, false);
+              }
             }
           }
           
@@ -422,6 +571,8 @@
 
     // Start game
     function startGame() {
+      initAudio();
+      
       score = 0;
       streak = 0;
       speedMultiplier = 1;
@@ -429,6 +580,7 @@
       baseDropSpeed = 2;
       dropInterval = 800;
       shieldActive = false;
+      highScoreCelebrated = false;
       
       drops.forEach(drop => drop.element.remove());
       drops = [];
