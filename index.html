@@ -50,8 +50,8 @@
       </div>
 
       <div class="active-powerup" id="active-powerup" style="display: none;">
-        <div class="powerup-icon">🛡️</div>
-        <div class="powerup-name">Shield Active</div>
+        <div class="powerup-icon" id="powerup-icon">🛡️</div>
+        <div class="powerup-name" id="powerup-name">Shield Active</div>
         <div class="powerup-timer" id="powerup-timer">5s</div>
       </div>
 
@@ -68,6 +68,10 @@
         <div class="legend-item">
           <div class="legend-drop powerup">🛡️</div>
           <span>Shield Power-up</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-drop powerup">💨</div>
+          <span>Slow Speed Power-up</span>
         </div>
       </div>
 
@@ -102,7 +106,7 @@
         <div class="controls">
           <button id="start-btn" class="btn-primary">Start Game</button>
           <p class="instructions">Move your mouse or touch to catch clean drops!</p>
-          <p class="instructions-detail">Catch clean water (+1) • Avoid dirty water (-2) • Grab shields for protection</p>
+          <p class="instructions-detail">Catch clean water (+1) • Avoid dirty water (-2) • Grab shields and slow drops</p>
         </div>
       </div>
     </div>
@@ -163,10 +167,16 @@
     let timerInterval = null;
     let shieldActive = false;
     let shieldEndTime = 0;
+    let slowActive = false;
+    let slowEndTime = 0;
     let isPaused = false;
     let animationFrameId = null;
     let audioContext = null;
     let highScoreCelebrated = false;
+    let dropsSinceLastPowerup = 0;
+    const POWERUP_DURATION_MS = 5000;
+    const SLOW_SPEED_FACTOR = 0.45;
+    const MAX_DROPS_WITHOUT_POWERUP = 10;
 
     // Initialize Audio Context
     function initAudio() {
@@ -303,6 +313,8 @@
     const gameOverModal = document.getElementById('game-over-modal');
     const playAgainBtn = document.getElementById('play-again-btn');
     const activePowerupEl = document.getElementById('active-powerup');
+    const powerupIconEl = document.getElementById('powerup-icon');
+    const powerupNameEl = document.getElementById('powerup-name');
     const powerupTimerEl = document.getElementById('powerup-timer');
     const pauseBtn = document.getElementById('pause-btn');
     const resumeBtn = document.getElementById('resume-btn');
@@ -315,7 +327,8 @@
     const DROP_TYPES = {
       CLEAN: { points: 1, color: 'clean', probability: 0.6 },
       DIRTY: { points: -2, color: 'dirty', probability: 0.3 },
-      POWERUP: { points: 0, color: 'powerup', probability: 0.1 }
+      SHIELD: { points: 0, color: 'powerup', probability: 0.05, icon: '🛡️' },
+      SLOW: { points: 0, color: 'powerup', probability: 0.05, icon: '💨' }
     };
 
     // Move bucket
@@ -340,9 +353,14 @@
 
     // Get random drop type
     function getRandomDropType() {
+      if (dropsSinceLastPowerup >= MAX_DROPS_WITHOUT_POWERUP) {
+        return Math.random() < 0.5 ? 'SHIELD' : 'SLOW';
+      }
+
       const rand = Math.random();
-      if (rand < DROP_TYPES.POWERUP.probability) return 'POWERUP';
-      if (rand < DROP_TYPES.POWERUP.probability + DROP_TYPES.DIRTY.probability) return 'DIRTY';
+      if (rand < DROP_TYPES.SHIELD.probability) return 'SHIELD';
+      if (rand < DROP_TYPES.SHIELD.probability + DROP_TYPES.SLOW.probability) return 'SLOW';
+      if (rand < DROP_TYPES.SHIELD.probability + DROP_TYPES.SLOW.probability + DROP_TYPES.DIRTY.probability) return 'DIRTY';
       return 'CLEAN';
     }
 
@@ -352,14 +370,20 @@
       const drop = document.createElement('div');
       drop.className = `drop ${DROP_TYPES[dropType].color}`;
       
-      if (dropType === 'POWERUP') {
-        drop.innerHTML = '🛡️';
+      if (dropType === 'SHIELD' || dropType === 'SLOW') {
+        drop.innerHTML = DROP_TYPES[dropType].icon;
         drop.classList.add('powerup-drop');
       }
       
       drop.style.left = Math.random() * (gameArea.offsetWidth - 30) + 'px';
       drop.style.top = '0px';
       gameArea.appendChild(drop);
+
+      if (dropType === 'SHIELD' || dropType === 'SLOW') {
+        dropsSinceLastPowerup = 0;
+      } else {
+        dropsSinceLastPowerup++;
+      }
       
       drops.push({
         element: drop,
@@ -369,23 +393,55 @@
       });
     }
 
+    function renderActivePowerupDisplay() {
+      if (shieldActive) {
+        activePowerupEl.style.display = 'block';
+        powerupIconEl.textContent = '🛡️';
+        powerupNameEl.textContent = 'Shield Active';
+        return;
+      }
+
+      if (slowActive) {
+        activePowerupEl.style.display = 'block';
+        powerupIconEl.textContent = '💨';
+        powerupNameEl.textContent = 'Slow Speed Active';
+        return;
+      }
+
+      activePowerupEl.style.display = 'none';
+    }
+
     // Activate shield
     function activateShield() {
       shieldActive = true;
-      shieldEndTime = Date.now() + 5000;
+      shieldEndTime = Date.now() + POWERUP_DURATION_MS;
       bucket.classList.add('shielded');
-      activePowerupEl.style.display = 'block';
+      renderActivePowerupDisplay();
+      updatePowerupTimer();
+    }
+
+    // Activate slow-speed powerup
+    function activateSlowSpeed() {
+      slowActive = true;
+      slowEndTime = Date.now() + POWERUP_DURATION_MS;
+      renderActivePowerupDisplay();
+      updateSpeed();
       updatePowerupTimer();
     }
 
     // Update powerup timer
     function updatePowerupTimer() {
-      if (shieldActive) {
-        const timeRemaining = Math.max(0, Math.ceil((shieldEndTime - Date.now()) / 1000));
+      if (shieldActive || slowActive) {
+        const activeEndTime = shieldActive ? shieldEndTime : slowEndTime;
+        const timeRemaining = Math.max(0, Math.ceil((activeEndTime - Date.now()) / 1000));
         powerupTimerEl.textContent = `${timeRemaining}s`;
-        
-        if (timeRemaining <= 0) {
+
+        if (shieldActive && Date.now() >= shieldEndTime) {
           deactivateShield();
+        }
+
+        if (slowActive && Date.now() >= slowEndTime) {
+          deactivateSlowSpeed();
         }
       }
     }
@@ -394,7 +450,13 @@
     function deactivateShield() {
       shieldActive = false;
       bucket.classList.remove('shielded');
-      activePowerupEl.style.display = 'none';
+      renderActivePowerupDisplay();
+    }
+
+    function deactivateSlowSpeed() {
+      slowActive = false;
+      renderActivePowerupDisplay();
+      updateSpeed();
     }
 
     // Update score
@@ -430,7 +492,8 @@
 
     // Update speed
     function updateSpeed() {
-      speedMultiplier = 1 + (score / 50);
+      const baseMultiplier = 1 + (score / 50);
+      speedMultiplier = slowActive ? Math.max(0.2, baseMultiplier * SLOW_SPEED_FACTOR) : baseMultiplier;
       speedEl.textContent = speedMultiplier.toFixed(1) + 'x';
       dropInterval = Math.max(400, 800 - (score * 2));
     }
@@ -487,6 +550,7 @@
       drops.forEach(drop => drop.element.remove());
       drops = [];
       deactivateShield();
+      deactivateSlowSpeed();
     }
 
     // Game loop
@@ -518,11 +582,16 @@
           const bucketCenterX = bucketRect.left + bucketRect.width / 2;
           const bucketTopY = bucketRect.top;
           
-          if (drop.type === 'POWERUP') {
+          if (drop.type === 'SHIELD') {
             activateShield();
             playPowerupSound();
             flashScreen('powerup');
             createFloatingText('🛡️', bucketCenterX - 15, bucketTopY - 20, true);
+          } else if (drop.type === 'SLOW') {
+            activateSlowSpeed();
+            playPowerupSound();
+            flashScreen('powerup');
+            createFloatingText('💨', bucketCenterX - 15, bucketTopY - 20, true);
           } else {
             const points = DROP_TYPES[drop.type].points;
             if (drop.type === 'DIRTY' && shieldActive) {
@@ -562,7 +631,7 @@
       });
 
       // Update powerup timer
-      if (shieldActive) {
+      if (shieldActive || slowActive) {
         updatePowerupTimer();
       }
 
@@ -580,7 +649,9 @@
       baseDropSpeed = 2;
       dropInterval = 800;
       shieldActive = false;
+      slowActive = false;
       highScoreCelebrated = false;
+      dropsSinceLastPowerup = 0;
       
       drops.forEach(drop => drop.element.remove());
       drops = [];
