@@ -137,6 +137,67 @@ body {
   color: #77ABBB;
 }
 
+/* Water Meter & Level */
+.water-meter {
+  background: linear-gradient(135deg, #77ABBB 0%, #BBD5DD 100%);
+  color: #1A1A1A;
+  padding: 20px;
+  border-radius: 15px;
+  border: 2px solid #003366;
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.2);
+}
+
+.meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.meter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #003366;
+}
+
+.meter-level {
+  font-size: 28px;
+  font-weight: 700;
+  color: #003366;
+  background: #FFC907;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #003366;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #003366 0%, #77ABBB 100%);
+  width: 0%;
+  transition: width 0.4s ease;
+  box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.meter-info {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #003366;
+}
+
 /* Active Powerup Display */
 .active-powerup {
   background: linear-gradient(135deg, #FFC907 0%, #FFE483 100%);
@@ -467,22 +528,22 @@ body {
 /* Floating Text */
 .floating-text {
   position: absolute;
-  font-size: 28px;
+  font-size: 16px;
   font-weight: bold;
   pointer-events: none;
   z-index: 50;
   animation: floatUp 1s ease-out forwards;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .floating-text.positive {
   color: #77ABBB;
-  text-shadow: 2px 2px 4px rgba(0, 51, 102, 0.5);
+  text-shadow: 1px 1px 2px rgba(0, 51, 102, 0.5);
 }
 
 .floating-text.negative {
   color: #BF6C46;
-  text-shadow: 2px 2px 4px rgba(26, 26, 26, 0.5);
+  text-shadow: 1px 1px 2px rgba(26, 26, 26, 0.5);
 }
 
 @keyframes floatUp {
@@ -492,7 +553,7 @@ body {
   }
   100% {
     opacity: 0;
-    transform: translateY(-80px) scale(1.5);
+    transform: translateY(-60px) scale(1.1);
   }
 }
 
@@ -523,19 +584,19 @@ body {
 
 .celebration-banner {
   position: absolute;
-  top: 18%;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 5%;
+  right: 15px;
+  transform: none;
   z-index: 120;
   background: linear-gradient(135deg, #FFC907 0%, #FFE483 100%);
   color: #003366;
-  border: 3px solid #003366;
-  border-radius: 999px;
-  padding: 12px 26px;
-  font-size: clamp(20px, 3.2vw, 32px);
-  font-weight: 800;
-  letter-spacing: 1px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  border: 2px solid #003366;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: clamp(12px, 1.8vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   animation: celebrationPop 0.45s ease-out;
 }
 

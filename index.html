@@ -49,6 +49,19 @@
         </div>
       </div>
 
+      <div class="water-meter">
+        <div class="meter-header">
+          <span class="meter-label">Level</span>
+          <span class="meter-level" id="current-level">1</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="water-progress"></div>
+        </div>
+        <div class="meter-info">
+          <span id="water-collected">0</span> / <span id="water-goal">5</span> drops
+        </div>
+      </div>
+
       <div class="active-powerup" id="active-powerup" style="display: none;">
         <div class="powerup-icon" id="powerup-icon">🛡️</div>
         <div class="powerup-name" id="powerup-name">Shield Active</div>
@@ -125,13 +138,13 @@
           <span class="label">Final Score</span>
           <span class="value" id="final-score">0</span>
         </div>
+        <div class="final-stat">
+          <span class="label">Level Reached</span>
+          <span class="value" id="final-level">1</span>
+        </div>
         <div class="final-stat best">
           <span class="label">Best Score</span>
           <span class="value" id="final-best">0</span>
-        </div>
-        <div class="final-stat">
-          <span class="label">People Helped</span>
-          <span class="value" id="final-impact">0</span>
         </div>
       </div>
       <p class="charity-message">💧 Every drop matters. 785 million people still lack access to clean water.</p>
@@ -177,6 +190,12 @@
     const POWERUP_DURATION_MS = 5000;
     const SLOW_SPEED_FACTOR = 0.45;
     const MAX_DROPS_WITHOUT_POWERUP = 10;
+
+    // Water Meter & Level Progression
+    let currentLevel = 1;
+    let waterCollected = 0;
+    let baseWaterGoal = 5;
+    let waterGoal = baseWaterGoal;
 
     // Initialize Audio Context
     function initAudio() {
@@ -320,6 +339,10 @@
     const resumeBtn = document.getElementById('resume-btn');
     const pauseOverlay = document.getElementById('pause-overlay');
     const returnHomeBtn = document.getElementById('return-home-btn');
+    const waterProgressEl = document.getElementById('water-progress');
+    const waterCollectedEl = document.getElementById('water-collected');
+    const waterGoalEl = document.getElementById('water-goal');
+    const currentLevelEl = document.getElementById('current-level');
 
     bestScoreEl.textContent = bestScore;
 
@@ -469,6 +492,15 @@
         // Bonus points for streak
         const bonusMultiplier = Math.floor(streak / 5);
         points += bonusMultiplier;
+
+        // Add to water meter
+        waterCollected++;
+        updateWaterMeterDisplay();
+
+        // Check for level up
+        if (waterCollected >= waterGoal) {
+          levelUp();
+        }
       } else if (dropType === 'DIRTY') {
         if (!shieldActive) {
           streak = 0;
@@ -488,6 +520,43 @@
       // Update impact counter
       const peopleHelped = Math.floor(score / 10);
       impactEl.textContent = peopleHelped;
+    }
+
+    // Update water meter display
+    function updateWaterMeterDisplay() {
+      const progressPercent = (waterCollected / waterGoal) * 100;
+      document.getElementById('water-progress').style.width = progressPercent + '%';
+      document.getElementById('water-collected').textContent = waterCollected;
+      document.getElementById('water-goal').textContent = waterGoal;
+    }
+
+    // Level up - help a community
+    function levelUp() {
+      currentLevel++;
+      waterCollected = 0;
+      
+      // Increase difficulty - more drops needed for next level
+      waterGoal = baseWaterGoal + (currentLevel - 1) * 3;
+      
+      // Increase base drop speed slightly
+      baseDropSpeed += 0.3;
+      
+      // Show level up celebration
+      const levelUpBanner = document.createElement('div');
+      levelUpBanner.className = 'celebration-banner';
+      levelUpBanner.textContent = `🌍 LEVEL ${currentLevel}! Community Helped!`;
+      gameArea.appendChild(levelUpBanner);
+      
+      flashScreen('powerup');
+      playPowerupSound();
+      
+      // Update displays
+      document.getElementById('current-level').textContent = currentLevel;
+      updateWaterMeterDisplay();
+      
+      setTimeout(() => {
+        levelUpBanner.remove();
+      }, 2400);
     }
 
     // Update speed
@@ -653,6 +722,11 @@
       highScoreCelebrated = false;
       dropsSinceLastPowerup = 0;
       
+      // Reset water meter and level
+      currentLevel = 1;
+      waterCollected = 0;
+      waterGoal = baseWaterGoal;
+      
       drops.forEach(drop => drop.element.remove());
       drops = [];
       
@@ -662,6 +736,10 @@
       timeEl.textContent = timeLeft;
       impactEl.textContent = '0';
       streakEl.parentElement.classList.remove('streak-active');
+      
+      // Update water meter display
+      document.getElementById('current-level').textContent = currentLevel;
+      updateWaterMeterDisplay();
       
       deactivateShield();
       gameOverModal.style.display = 'none';
@@ -703,8 +781,9 @@
       
       // Show game over modal
       document.getElementById('final-score').textContent = score;
+      document.getElementById('final-level').textContent = currentLevel;
       document.getElementById('final-best').textContent = bestScore;
-      document.getElementById('final-impact').textContent = Math.floor(score / 10);
+      document.getElementById('final-impact-count').textContent = Math.floor(score / 10);
       document.getElementById('final-impact-count').textContent = Math.floor(score / 10);
       gameOverModal.style.display = 'flex';
     }
